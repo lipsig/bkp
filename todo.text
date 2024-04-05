@@ -1,0 +1,67 @@
+<?php
+public function authenticate($taxDocument, $secretAccessKey) {
+    $url = 'https://sandboxaqpago.aqbank.com.br/api/auth/login';
+
+    // Dados para a autenticação
+    $data = array(
+        'tax_document' => $taxDocument,
+        'secret_access_key' => $secretAccessKey
+    );
+
+    // Configuração da requisição
+    $options = array(
+        'http' => array(
+            'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+            'method'  => 'POST',
+            'content' => http_build_query($data)
+        )
+    );
+
+    // Cria um contexto para a requisição
+    $context  = stream_context_create($options);
+
+    // Envia a requisição
+    // O resultado é um JSON com os dados da autenticação
+    $result = file_get_contents($url, false, $context);
+
+    if ($result === FALSE) {
+        return 'Erro ao autenticar';
+    }
+
+    // Converte o resultado para um array
+    $resultArray = json_decode($result, true);
+
+    // Verifica se a autenticação foi bem-sucedida
+    if (isset($resultArray['success']) && $resultArray['success'] === true) {
+        // Salva o token
+        $this->setToken($resultArray['token']);
+    } else {
+        return 'Erro ao autenticar';
+    }
+
+    return $this->getToken();
+}
+?>
+
+
+<?php
+$pix = new Pix($seller_doc, $seller_token, $apiUrl);
+
+// Autentica e obtém o token
+$token = $pix->authenticate($seller_doc, $seller_token);
+
+if ($token !== 'Erro ao autenticar') {
+    $chargePixTaxId = new ChargePixTaxId();
+    $chargePixTaxId->setInvoiceName('Pedido 123')
+        ->setAmount(100.00)
+        ->setValidate(date('Y-m-d', strtotime(date('Y-m-d') . ' +30 days')))
+        ->setDescription('Compra na loja')
+        ->setTaxpayerId('000.000.000-00'); // documento do pagador
+
+    $response = $pix->createOrderPixTaxDocument($chargePixTaxId);
+
+    echo $response;
+} else {
+    echo 'Erro ao autenticar';
+}
+?>
